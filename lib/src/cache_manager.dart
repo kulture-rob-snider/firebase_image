@@ -7,8 +7,12 @@ import 'package:firebase_image/src/firebase_image.dart';
 import 'package:firebase_image/src/image_object.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+
+import 'image_fetch_strategy.dart';
 
 class FirebaseImageCacheManager {
   static const String key = 'firebase_image';
@@ -19,10 +23,12 @@ class FirebaseImageCacheManager {
   late String basePath;
 
   final CacheRefreshStrategy cacheRefreshStrategy;
+  final ImageFetchStrategy imageFetchStrategy;
 
-  FirebaseImageCacheManager(
-    this.cacheRefreshStrategy,
-  );
+  FirebaseImageCacheManager({
+    @required this.cacheRefreshStrategy,
+    this.imageFetchStrategy = ImageFetchStrategy.FETCH_TO_MEMORY,
+  }) : assert(cacheRefreshStrategy != null);
 
   Future<void> open() async {
     db = await openDatabase(
@@ -140,9 +146,28 @@ class FirebaseImageCacheManager {
     return null;
   }
 
-  Future<Uint8List?> remoteFileBytes(
-      FirebaseImageObject object, int maxSizeBytes) {
+  Future<Uint8List?> _fetchToMemory(FirebaseImageObject object, int maxSizeBytes) {
     return object.reference.getData(maxSizeBytes);
+  }
+
+  Future<Uint8List?> _fetchToFile(FirebaseImageObject object) async {
+    Directory dir = await getApplicationSupportDirectory();
+    File file = File('${dir.path}/${object.remotePath}');
+    file.createSync(recursive: true);
+    StorageFileDownloadTask task = object.reference.writeToFile(file);
+    await task.future;
+    return file.readAsBytesSync();
+  }
+
+  Future<Uint8List?> remoteFileBytes(FirebaseImageObject object, int maxSizeBytes) {
+    if (imageFetchStrategy == ImageFetchStrategy.FETCH_TO_FILE) {
+      return _fetchToFile(object);
+    }
+    else if (imageFetchStrategy == ImageFetchStrategy.FETCH_TO_MEMORY) {
+      return _fetchToMemory(object, maxSizeBytes);
+    }
+
+    throw(Exception("ImageFetchStrategy missing"));
   }
 
   Future<Uint8List?> upsertRemoteFileToCache(
