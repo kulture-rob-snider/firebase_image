@@ -7,8 +7,6 @@ import 'package:firebase_image/src/firebase_image.dart';
 import 'package:firebase_image/src/image_object.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -26,13 +24,13 @@ class FirebaseImageCacheManager {
   final ImageFetchStrategy imageFetchStrategy;
 
   FirebaseImageCacheManager({
-    @required this.cacheRefreshStrategy,
+    required this.cacheRefreshStrategy,
     this.imageFetchStrategy = ImageFetchStrategy.FETCH_TO_MEMORY,
-  }) : assert(cacheRefreshStrategy != null);
+  });
 
   Future<void> open() async {
     db = await openDatabase(
-      join((await getDatabasesPath())!, dbName),
+      join((await getDatabasesPath()), dbName),
       onCreate: (Database db, int version) async {
         await db.execute('''
           CREATE TABLE $table (

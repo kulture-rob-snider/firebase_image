@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'cache_manager.dart';
 import 'image_fetch_strategy.dart';
 
-typedef FirebaseImageError = Uint8List Function(Exception exception);
+typedef FirebaseImageError = Uint8List? Function(Exception exception);
 
 class FirebaseImage extends ImageProvider<FirebaseImage> {
   // Default: True. Specified whether or not an image should be cached (optional)
@@ -37,7 +37,7 @@ class FirebaseImage extends ImageProvider<FirebaseImage> {
   final ImageFetchStrategy imageFetchStrategy;
 
   /// An optional response to when an error occurs (optional)
-  final FirebaseImageError onError;
+  final FirebaseImageError? onError;
 
   final FirebaseImageCacheManager _cacheManager;
 
@@ -89,14 +89,14 @@ class FirebaseImage extends ImageProvider<FirebaseImage> {
     return storage.ref().child(_getImagePath(location));
   }
 
-  Future<Uint8List?> _fetchImage() async {
+  Future<Uint8List> _fetchImage() async {
     Uint8List? bytes;
 
     try {
       if (shouldCache) {
         await _cacheManager.open();
-        FirebaseImageObject localObject =
-        await _cacheManager.get(_imageObject.uri, this);
+        FirebaseImageObject? localObject =
+            await _cacheManager.get(_imageObject.uri, this);
 
         if (localObject != null) {
           bytes = await _cacheManager.localFileBytes(localObject);
@@ -113,12 +113,10 @@ class FirebaseImage extends ImageProvider<FirebaseImage> {
         await _cacheManager.remoteFileBytes(_imageObject, this.maxSizeBytes);
       }
     }
-    catch (ex) {
+    on Exception catch (ex) {
       await delete();
 
-      if (this.onError != null) {
-        bytes = this.onError(ex);
-      }
+      bytes = this.onError!(ex);
     }
 
     return bytes!;
